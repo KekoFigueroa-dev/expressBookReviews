@@ -1,9 +1,19 @@
+const axios = require('axios');
 const express = require('express');
 let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
 const public_users = express.Router();
 
+// Helper function for async operations
+const getBookListAsync = async (url) => {
+    try {
+        const response = await axios.get(url);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
 
 public_users.post("/register", (req, res) => {
     const { username, password } = req.body;
@@ -23,71 +33,52 @@ public_users.post("/register", (req, res) => {
     return res.status(201).json({message: "User successfully registered"});
 });
 
-public_users.get('/',function (req, res) {
-    res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json(Object.entries(books).map(([id, book]) => ({
-        id,
-        author: book.author,
-        title: book.title
-    })));
+//Get all books async
+public_users.get('/async', async function (req, res) {
+    try {
+        const bookList = await getBookListAsync('http://localhost:5000/');
+        res.json(bookList);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving book list" });
+    }
 });
 
 
-// Get book details based on ISBN
-public_users.get('/isbn/:isbn',function (req, res) {
-    const isbn = req.params.isbn;
-    
-    // Check if the book exists
-    if (books[isbn]) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json({
-            id: isbn,
-            author: books[isbn].author,
-            title: books[isbn].title
-        });
+// Get book details based on ISBN async
+public_users.get('/async/isbn/:isbn', async function (req, res) {
+    try {
+        const requestedIsbn = req.params.isbn;
+        const book = await getBookListAsync('http://localhost:5000/isbn/' + requestedIsbn);
+        res.json(book);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving book details" });
     }
-    
-    return res.status(404).json({message: "Book not found"});
 });
   
-// Get book details based on author
-public_users.get('/author/:author', function (req, res) {
-    const author = req.params.author;
-    const booksByAuthor = Object.entries(books)
-        .filter(([_, book]) => book.author.toLowerCase() === author.toLowerCase())
-        .map(([id, book]) => ({
-            id,
-            author: book.author,
-            title: book.title,
-            reviews: book.reviews
-        }));
-
-    if (booksByAuthor.length > 0) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json(booksByAuthor);
+// Get book details based on author async
+public_users.get('/async/author/:author', async function (req, res) {
+    try {
+        const requestedAuthor = req.params.author;
+        const book = await getBookListAsync("http://localhost:5000/author/" + requestedAuthor);
+        res.json(book);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving book details" });
     }
-    
-    return res.status(404).json({message: "No books found for this author"});
 });
 
-// Get all books based on title
-public_users.get('/title/:title', function (req, res) {
-    const title = req.params.title;
-    const booksByTitle = Object.entries(books)
-        .filter(([_, book]) => book.title.toLowerCase() === title.toLowerCase())
-        .map(([id, book]) => ({
-            id,
-            author: book.author,
-            title: book.title,
-            reviews: book.reviews
-        }));
-
-    if (booksByTitle.length > 0) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.status(200).json(booksByTitle);
+// Get all books based on title async
+public_users.get('/async/title/:title', async function (req, res) {
+    try {
+        const requestedTitle = req.params.title;
+        const book = await getBookListAsync("http://localhost:5000/title/" + requestedTitle);
+        res.json(book);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Error retrieving book details" });
     }
-    
-    return res.status(404).json({message: "No books found with this title"});
 });
 
 //  Get book review
